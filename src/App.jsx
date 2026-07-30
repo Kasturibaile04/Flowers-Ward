@@ -56,10 +56,13 @@ function App() {
     tulip:     [{ petal: 350, center: 40 }, { petal: 280, center: 45 }, { petal: 10, center: 35 }],
   }
 
-  const SPACING_PX = 20
+  const SPACING_PX = 14           // tighter spacing = flowers appear faster along the trail
   const MAX_FLOWERS = 130
-  const VELOCITY_SCALE = 16
-  const VELOCITY_INHERIT = 0.45
+  const VELOCITY_SCALE = 20       // was 16 — trail flowers pick up speed faster
+  const VELOCITY_INHERIT = 0.55   // was 0.45 — stronger inherited speed
+
+  const THROW_VISIBLE_MS = 2000   // throw animation stays fully visible for ~2s
+  const THROW_FADE_MS = 150       // then disappears fast
 
   const randomSpecies = () => SPECIES[Math.floor(Math.random() * SPECIES.length)]
   const randomPalette = (species) => {
@@ -78,13 +81,14 @@ function App() {
       petalLight: !!palette.petalLight,
       size: throwing ? 20 + Math.random() * 20 : 16 + Math.random() * 16,
       rotation: Math.random() * 360,
-      rotationSpeed: throwing ? (Math.random() - 0.5) * 10 : (Math.random() - 0.5) * 1.2,
-      gravity: throwing ? 0.05 : 0.002,
-      friction: throwing ? 0.94 : 0.98,
+      rotationSpeed: throwing ? (Math.random() - 0.5) * 14 : (Math.random() - 0.5) * 1.2,
+      gravity: throwing ? 0.04 : 0.002,
+      friction: throwing ? 0.95 : 0.98,
       life: 1,
-      fadeRate: throwing ? 0.02 + Math.random() * 0.015 : 0.004,
+      fadeRate: throwing ? 0 : 0.004, // throwing flowers use timestamp-based life instead, see draw loop
       glow: throwing ? 25 + Math.random() * 15 : 0,
       throwing,
+      spawnTime: throwing ? performance.now() : null,
     }
   }
 
@@ -115,19 +119,20 @@ function App() {
   }
 
   const throwFlowers = useCallback((cx, cy) => {
+    const now = performance.now()
     flowersRef.current.forEach(f => {
       const dx = f.x - cx
       const dy = f.y - cy
       const dist = Math.hypot(dx, dy) || 1
-      const kick = 12 + Math.random() * 12
+      const kick = 18 + Math.random() * 16 // faster outward kick
       f.vx = (dx / dist) * kick
       f.vy = (dy / dist) * kick
-      f.gravity = 0.03
-      f.friction = 0.92
-      f.fadeRate = 0.05 + Math.random() * 0.03
+      f.gravity = 0.04
+      f.friction = 0.95
       f.rotationSpeed = (Math.random() - 0.5) * 25
       f.throwing = true
       f.glow = 30
+      f.spawnTime = now // resets the 2s visible timer for this flower
     })
     for (let i = 0; i < 14; i++) spawnBurstFlower(cx, cy)
   }, [spawnBurstFlower])
@@ -381,6 +386,8 @@ function App() {
         flowersRef.current = flowersRef.current.slice(flowersRef.current.length - MAX_FLOWERS)
       }
 
+      const nowTs = performance.now()
+
       flowersRef.current = flowersRef.current.filter(f => f.life > 0)
       flowersRef.current.forEach(f => {
         f.vy += f.gravity
@@ -389,7 +396,20 @@ function App() {
         f.x += f.vx
         f.y += f.vy
         f.rotation += f.rotationSpeed
-        f.life -= f.fadeRate
+
+        if (f.throwing) {
+          // stays fully visible for THROW_VISIBLE_MS, then fades out fast over THROW_FADE_MS
+          const elapsed = nowTs - f.spawnTime
+          if (elapsed < THROW_VISIBLE_MS) {
+            f.life = 1
+          } else {
+            const fadeElapsed = elapsed - THROW_VISIBLE_MS
+            f.life = Math.max(1 - fadeElapsed / THROW_FADE_MS, 0)
+          }
+        } else {
+          f.life -= f.fadeRate
+        }
+
         drawFlower(ctx, f)
       })
 
