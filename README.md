@@ -30,19 +30,7 @@ An interactive hand-tracking web application where beautiful flowers bloom and f
 
 Live Website:
 
-https://your-vercel-link.vercel.app
-
----
-
-## 📷 Screenshots
-
-Add screenshots here.
-
-Example:
-
-```
-screenshots/home.png
-```
+https://flowers-ward.vercel.app/
 
 ---
 
