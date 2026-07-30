@@ -10,8 +10,8 @@ function App() {
 
   const handLandmarkerRef = useRef(null)
   const flowersRef = useRef([])
-  const lastPosRef = useRef({}) // last spawn position + timestamp per hand
-  const wasOpenRef = useRef({}) // tracks open-palm state per hand, to detect the moment it opens
+  const lastPosRef = useRef({})
+  const wasOpenRef = useRef({})
 
   useEffect(() => {
     const setup = async () => {
@@ -33,7 +33,6 @@ function App() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        // 720p is plenty for landmark detection and noticeably lighter than 1080p
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
       })
       videoRef.current.srcObject = stream
@@ -46,85 +45,75 @@ function App() {
     }
   }
 
-  // Color palette for flowers — each is [petalHue, centerHue]
-  const FLOWER_PALETTES = [
-    { petal: 330, center: 45 },  // pink / gold center
-    { petal: 300, center: 50 },  // magenta / gold
-    { petal: 200, center: 45 },  // sky blue / gold
-    { petal: 15,  center: 50 },  // coral / gold
-    { petal: 280, center: 48 },  // violet / gold
-    { petal: 340, center: 40 },  // rose / amber
-  ]
+  // ---- Flower species definitions ----
+  const SPECIES = ['sunflower', 'daisy', 'bluebell', 'ranunculus', 'tulip']
 
-  const SPACING_PX = 18       // spacing between trail flowers (bigger = fewer, cheaper)
-  const MAX_FLOWERS = 150     // hard cap so long sessions stay smooth
-  const VELOCITY_SCALE = 16   // how strongly finger speed is scaled before inheriting
-  const VELOCITY_INHERIT = 0.45 // how much of that scaled speed a flower keeps
+  const PALETTES = {
+    sunflower: [{ petal: 46, center: 28 }, { petal: 40, center: 22 }],
+    daisy:     [{ petal: 0,  center: 48, petalLight: true }, { petal: 340, center: 45, petalLight: true }],
+    bluebell:  [{ petal: 220, center: 50 }, { petal: 260, center: 48 }, { petal: 205, center: 45 }],
+    ranunculus:[{ petal: 320, center: 40 }, { petal: 300, center: 45 }, { petal: 15, center: 40 }],
+    tulip:     [{ petal: 350, center: 40 }, { petal: 280, center: 45 }, { petal: 10, center: 35 }],
+  }
 
-  // Trail flower — spawned along the fingertip's path, inherits finger velocity
-  const spawnTrailFlower = useCallback((x, y, fingerVx = 0, fingerVy = 0) => {
-    const palette = FLOWER_PALETTES[Math.floor(Math.random() * FLOWER_PALETTES.length)]
-    flowersRef.current.push({
-      x, y,
-      vx: fingerVx * VELOCITY_INHERIT + (Math.random() - 0.5) * 0.4,
-      vy: fingerVy * VELOCITY_INHERIT + 0.25 + Math.random() * 0.25,
-      gravity: 0.002,
-      friction: 0.98,
+  const SPACING_PX = 20
+  const MAX_FLOWERS = 130
+  const VELOCITY_SCALE = 16
+  const VELOCITY_INHERIT = 0.45
+
+  const randomSpecies = () => SPECIES[Math.floor(Math.random() * SPECIES.length)]
+  const randomPalette = (species) => {
+    const pool = PALETTES[species]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  const makeFlower = (x, y, vx, vy, throwing) => {
+    const species = randomSpecies()
+    const palette = randomPalette(species)
+    return {
+      x, y, vx, vy,
+      species,
       petalHue: palette.petal,
       centerHue: palette.center,
-      petalCount: 5 + Math.floor(Math.random() * 2), // 5 or 6 petals
-      size: 14 + Math.random() * 14,
+      petalLight: !!palette.petalLight,
+      size: throwing ? 20 + Math.random() * 20 : 16 + Math.random() * 16,
       rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 1.2,
+      rotationSpeed: throwing ? (Math.random() - 0.5) * 10 : (Math.random() - 0.5) * 1.2,
+      gravity: throwing ? 0.05 : 0.002,
+      friction: throwing ? 0.94 : 0.98,
       life: 1,
-      fadeRate: 0.0045,
-      glow: 10 + Math.random() * 6,
-      throwing: false, // no shadowBlur while true for perf; only burst flowers glow
-    })
+      fadeRate: throwing ? 0.02 + Math.random() * 0.015 : 0.004,
+      glow: throwing ? 25 + Math.random() * 15 : 0,
+      throwing,
+    }
+  }
+
+  const spawnTrailFlower = useCallback((x, y, fingerVx = 0, fingerVy = 0) => {
+    const vx = fingerVx * VELOCITY_INHERIT + (Math.random() - 0.5) * 0.4
+    const vy = fingerVy * VELOCITY_INHERIT + 0.25 + Math.random() * 0.25
+    flowersRef.current.push(makeFlower(x, y, vx, vy, false))
   }, [])
 
-  // Burst sparkle-flower for the "throw" moment — these DO glow
   const spawnBurstFlower = useCallback((cx, cy) => {
-    const palette = FLOWER_PALETTES[Math.floor(Math.random() * FLOWER_PALETTES.length)]
     const angle = Math.random() * Math.PI * 2
     const speed = 6 + Math.random() * 10
-    flowersRef.current.push({
-      x: cx, y: cy,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      gravity: 0.05,
-      friction: 0.96,
-      petalHue: palette.petal,
-      centerHue: palette.center,
-      petalCount: 5 + Math.floor(Math.random() * 2),
-      size: 18 + Math.random() * 20,
-      rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 10,
-      life: 1,
-      fadeRate: 0.02 + Math.random() * 0.015,
-      glow: 25 + Math.random() * 15,
-      throwing: true,
-    })
+    flowersRef.current.push(
+      makeFlower(cx, cy, Math.cos(angle) * speed, Math.sin(angle) * speed, true)
+    )
   }, [])
 
-  // Checks if 4 main fingers are extended (open palm)
   const isPalmOpen = (hand) => {
     const wrist = hand[0]
     const tips = [8, 12, 16, 20]
     const pips = [6, 10, 14, 18]
     const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
-
     let extendedCount = 0
     for (let i = 0; i < tips.length; i++) {
-      if (dist(hand[tips[i]], wrist) > dist(hand[pips[i]], wrist)) {
-        extendedCount++
-      }
+      if (dist(hand[tips[i]], wrist) > dist(hand[pips[i]], wrist)) extendedCount++
     }
     return extendedCount >= 4
   }
 
-  // THE MAIN EVENT: throw every flower currently on screen outward with a glowing
-  // burst, plus spawn a ring of fresh glowing sparkle-flowers from the palm center.
   const throwFlowers = useCallback((cx, cy) => {
     flowersRef.current.forEach(f => {
       const dx = f.x - cx
@@ -140,17 +129,156 @@ function App() {
       f.throwing = true
       f.glow = 30
     })
-
-    // radiating burst of new glowing flowers
-    const burstCount = 14
-    for (let i = 0; i < burstCount; i++) {
-      spawnBurstFlower(cx, cy)
-    }
+    for (let i = 0; i < 14; i++) spawnBurstFlower(cx, cy)
   }, [spawnBurstFlower])
 
-  // Draws a single flower using layered gradient petals + glowing center.
-  // shadowBlur (glow) is only applied to "throwing" flowers — it's expensive,
-  // so we skip it for the (much more numerous) trail flowers.
+  // ---- Species draw routines ----
+
+  const drawSunflower = (ctx, f, alpha, size) => {
+    const petalCount = 13
+    for (let i = 0; i < petalCount; i++) {
+      const a = (i / petalCount) * Math.PI * 2
+      ctx.save()
+      ctx.rotate(a)
+      const grad = ctx.createLinearGradient(0, 0, 0, -size)
+      grad.addColorStop(0, `hsla(${f.petalHue}, 90%, 45%, ${alpha})`)
+      grad.addColorStop(1, `hsla(${f.petalHue}, 95%, 62%, ${alpha * 0.95})`)
+      ctx.beginPath()
+      ctx.moveTo(-size * 0.12, 0)
+      ctx.quadraticCurveTo(-size * 0.16, -size * 0.65, 0, -size)
+      ctx.quadraticCurveTo(size * 0.16, -size * 0.65, size * 0.12, 0)
+      ctx.closePath()
+      ctx.fillStyle = grad
+      ctx.fill()
+      ctx.restore()
+    }
+    const r = size * 0.32
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r)
+    grad.addColorStop(0, `hsla(${f.centerHue}, 80%, 30%, ${alpha})`)
+    grad.addColorStop(1, `hsla(${f.centerHue}, 70%, 18%, ${alpha})`)
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fillStyle = grad
+    ctx.fill()
+    ctx.fillStyle = `hsla(${f.centerHue}, 60%, 12%, ${alpha * 0.6})`
+    for (let i = 0; i < 6; i++) {
+      const a = Math.random() * Math.PI * 2
+      const rr = Math.random() * r * 0.8
+      ctx.beginPath()
+      ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr, r * 0.08, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  const drawDaisy = (ctx, f, alpha, size) => {
+    const petalCount = 10
+    const lightness = f.petalLight ? 96 : 80
+    for (let i = 0; i < petalCount; i++) {
+      const a = (i / petalCount) * Math.PI * 2
+      ctx.save()
+      ctx.rotate(a)
+      ctx.beginPath()
+      ctx.ellipse(0, -size * 0.55, size * 0.14, size * 0.42, 0, 0, Math.PI * 2)
+      ctx.fillStyle = `hsla(${f.petalHue}, 60%, ${lightness}%, ${alpha})`
+      ctx.fill()
+      ctx.restore()
+    }
+    const r = size * 0.22
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r)
+    grad.addColorStop(0, `hsla(${f.centerHue}, 100%, 78%, ${alpha})`)
+    grad.addColorStop(1, `hsla(${f.centerHue}, 100%, 50%, ${alpha})`)
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fillStyle = grad
+    ctx.fill()
+  }
+
+  const drawBluebell = (ctx, f, alpha, size) => {
+    const petalCount = 5
+    for (let i = 0; i < petalCount; i++) {
+      const a = (i / petalCount) * Math.PI * 2
+      ctx.save()
+      ctx.rotate(a)
+      const grad = ctx.createLinearGradient(0, 0, 0, -size)
+      grad.addColorStop(0, `hsla(${f.petalHue}, 70%, 45%, ${alpha})`)
+      grad.addColorStop(1, `hsla(${f.petalHue}, 85%, 72%, ${alpha * 0.9})`)
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.quadraticCurveTo(size * 0.3, -size * 0.5, 0, -size)
+      ctx.quadraticCurveTo(-size * 0.3, -size * 0.5, 0, 0)
+      ctx.closePath()
+      ctx.fillStyle = grad
+      ctx.fill()
+      ctx.restore()
+    }
+    const r = size * 0.18
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fillStyle = `hsla(${f.centerHue}, 100%, 80%, ${alpha})`
+    ctx.fill()
+  }
+
+  const drawRanunculus = (ctx, f, alpha, size) => {
+    const rings = [
+      { count: 8, rStart: size * 0.9, petalLen: size * 0.55, light: 0 },
+      { count: 7, rStart: size * 0.5, petalLen: size * 0.45, light: 10 },
+      { count: 5, rStart: size * 0.15, petalLen: size * 0.3, light: 20 },
+    ]
+    rings.forEach(ring => {
+      for (let i = 0; i < ring.count; i++) {
+        const a = (i / ring.count) * Math.PI * 2 + (ring.rStart * 0.01)
+        ctx.save()
+        ctx.rotate(a)
+        ctx.translate(0, -ring.rStart * 0.3)
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, ring.petalLen)
+        grad.addColorStop(0, `hsla(${f.petalHue}, 80%, ${55 + ring.light}%, ${alpha})`)
+        grad.addColorStop(1, `hsla(${f.petalHue}, 90%, ${70 + ring.light}%, ${alpha * 0.85})`)
+        ctx.beginPath()
+        ctx.ellipse(0, 0, ring.petalLen * 0.45, ring.petalLen * 0.6, 0, 0, Math.PI * 2)
+        ctx.fillStyle = grad
+        ctx.fill()
+        ctx.restore()
+      }
+    })
+    const r = size * 0.14
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fillStyle = `hsla(${f.centerHue}, 90%, 55%, ${alpha})`
+    ctx.fill()
+  }
+
+  const drawTulip = (ctx, f, alpha, size) => {
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2
+      ctx.save()
+      ctx.rotate(a)
+      const grad = ctx.createLinearGradient(0, 0, 0, -size)
+      grad.addColorStop(0, `hsla(${f.petalHue}, 75%, 40%, ${alpha})`)
+      grad.addColorStop(1, `hsla(${f.petalHue}, 85%, 65%, ${alpha * 0.9})`)
+      ctx.beginPath()
+      ctx.moveTo(-size * 0.3, 0)
+      ctx.bezierCurveTo(-size * 0.35, -size * 0.6, -size * 0.15, -size, 0, -size)
+      ctx.bezierCurveTo(size * 0.15, -size, size * 0.35, -size * 0.6, size * 0.3, 0)
+      ctx.closePath()
+      ctx.fillStyle = grad
+      ctx.fill()
+      ctx.restore()
+    }
+    const r = size * 0.12
+    ctx.beginPath()
+    ctx.arc(0, size * 0.05, r, 0, Math.PI * 2)
+    ctx.fillStyle = `hsla(${f.centerHue}, 90%, 45%, ${alpha})`
+    ctx.fill()
+  }
+
+  const DRAW_FN = {
+    sunflower: drawSunflower,
+    daisy: drawDaisy,
+    bluebell: drawBluebell,
+    ranunculus: drawRanunculus,
+    tulip: drawTulip,
+  }
+
   const drawFlower = (ctx, f) => {
     const alpha = Math.max(f.life, 0)
     const scaledSize = f.size * (0.5 + 0.5 * alpha)
@@ -167,43 +295,7 @@ function App() {
       ctx.shadowBlur = 0
     }
 
-    // petals
-    for (let i = 0; i < f.petalCount; i++) {
-      const petalAngle = (i / f.petalCount) * Math.PI * 2
-      ctx.save()
-      ctx.rotate(petalAngle)
-
-      const grad = ctx.createLinearGradient(0, 0, 0, -scaledSize)
-      grad.addColorStop(0, `hsla(${f.petalHue}, 85%, 55%, ${alpha})`)
-      grad.addColorStop(1, `hsla(${f.petalHue}, 95%, 78%, ${alpha * 0.9})`)
-
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.bezierCurveTo(
-        scaledSize * 0.35, -scaledSize * 0.3,
-        scaledSize * 0.35, -scaledSize * 0.8,
-        0, -scaledSize
-      )
-      ctx.bezierCurveTo(
-        -scaledSize * 0.35, -scaledSize * 0.8,
-        -scaledSize * 0.35, -scaledSize * 0.3,
-        0, 0
-      )
-      ctx.closePath()
-      ctx.fillStyle = grad
-      ctx.fill()
-      ctx.restore()
-    }
-
-    // center
-    const centerR = scaledSize * 0.28
-    const centerGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, centerR)
-    centerGrad.addColorStop(0, `hsla(${f.centerHue}, 100%, 85%, ${alpha})`)
-    centerGrad.addColorStop(1, `hsla(${f.centerHue}, 100%, 55%, ${alpha * 0.7})`)
-    ctx.beginPath()
-    ctx.arc(0, 0, centerR, 0, Math.PI * 2)
-    ctx.fillStyle = centerGrad
-    ctx.fill()
+    DRAW_FN[f.species](ctx, f, alpha, scaledSize)
 
     ctx.restore()
   }
@@ -219,9 +311,6 @@ function App() {
         return
       }
 
-      // Only resize the canvas when the video's actual dimensions change —
-      // resizing clears + reallocates the backing buffer, so doing it every
-      // frame is wasteful.
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
@@ -240,7 +329,6 @@ function App() {
 
             const open = isPalmOpen(hand)
 
-            // Edge-trigger: only fires the instant the palm opens, not every frame it's open
             if (open && !wasOpenRef.current[key]) {
               const cx = hand.reduce((sum, p) => sum + p.x, 0) / hand.length * canvas.width
               const cy = hand.reduce((sum, p) => sum + p.y, 0) / hand.length * canvas.height
@@ -256,13 +344,11 @@ function App() {
                 spawnTrailFlower(x, y)
                 lastPosRef.current[key] = { x, y, t: now }
               } else {
-                const dt = Math.max(now - last.t, 1) // ms since last update, avoid div by 0
-
+                const dt = Math.max(now - last.t, 1)
                 let dx = x - last.x
                 let dy = y - last.y
                 let dist = Math.hypot(dx, dy)
 
-                // finger's actual speed, scaled to a usable range for flower velocity
                 const fingerVx = (dx / dt) * VELOCITY_SCALE
                 const fingerVy = (dy / dt) * VELOCITY_SCALE
 
@@ -277,14 +363,12 @@ function App() {
                   dy = y - last.y
                   dist = Math.hypot(dx, dy)
                 }
-
                 last.t = now
               }
             } else {
               lastPosRef.current[key] = { x, y, t: performance.now() }
             }
 
-            // fingertip marker (kept lightweight — no shadowBlur)
             ctx.beginPath()
             ctx.arc(x, y, 6, 0, 2 * Math.PI)
             ctx.fillStyle = open ? 'rgba(255,182,193,0.9)' : 'rgba(255,255,255,0.6)'
@@ -293,7 +377,6 @@ function App() {
         }
       }
 
-      // Cap flower count so it doesn't grow unbounded during long sessions
       if (flowersRef.current.length > MAX_FLOWERS) {
         flowersRef.current = flowersRef.current.slice(flowersRef.current.length - MAX_FLOWERS)
       }
@@ -307,7 +390,6 @@ function App() {
         f.y += f.vy
         f.rotation += f.rotationSpeed
         f.life -= f.fadeRate
-
         drawFlower(ctx, f)
       })
 
