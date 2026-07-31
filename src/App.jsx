@@ -56,13 +56,22 @@ function App() {
     tulip:     [{ petal: 350, center: 40 }, { petal: 280, center: 45 }, { petal: 10, center: 35 }],
   }
 
-  const SPACING_PX = 14           // tighter spacing = flowers appear faster along the trail
-  const MAX_FLOWERS = 130
-  const VELOCITY_SCALE = 20       // was 16 — trail flowers pick up speed faster
-  const VELOCITY_INHERIT = 0.55   // was 0.45 — stronger inherited speed
+  const HAND_CONNECTIONS = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [5,9],[9,10],[10,11],[11,12],
+    [9,13],[13,14],[14,15],[15,16],
+    [13,17],[17,18],[18,19],[19,20],
+    [0,17]
+  ]
 
-  const THROW_VISIBLE_MS = 2000   // throw animation stays fully visible for ~2s
-  const THROW_FADE_MS = 150       // then disappears fast
+  const SPACING_PX = 14
+  const MAX_FLOWERS = 130
+  const VELOCITY_SCALE = 20
+  const VELOCITY_INHERIT = 0.55
+
+  const THROW_VISIBLE_MS = 2000
+  const THROW_FADE_MS = 150
 
   const randomSpecies = () => SPECIES[Math.floor(Math.random() * SPECIES.length)]
   const randomPalette = (species) => {
@@ -85,7 +94,7 @@ function App() {
       gravity: throwing ? 0.04 : 0.002,
       friction: throwing ? 0.95 : 0.98,
       life: 1,
-      fadeRate: throwing ? 0 : 0.004, // throwing flowers use timestamp-based life instead, see draw loop
+      fadeRate: throwing ? 0 : 0.004,
       glow: throwing ? 25 + Math.random() * 15 : 0,
       throwing,
       spawnTime: throwing ? performance.now() : null,
@@ -124,7 +133,7 @@ function App() {
       const dx = f.x - cx
       const dy = f.y - cy
       const dist = Math.hypot(dx, dy) || 1
-      const kick = 18 + Math.random() * 16 // faster outward kick
+      const kick = 18 + Math.random() * 16
       f.vx = (dx / dist) * kick
       f.vy = (dy / dist) * kick
       f.gravity = 0.04
@@ -132,7 +141,7 @@ function App() {
       f.rotationSpeed = (Math.random() - 0.5) * 25
       f.throwing = true
       f.glow = 30
-      f.spawnTime = now // resets the 2s visible timer for this flower
+      f.spawnTime = now
     })
     for (let i = 0; i < 14; i++) spawnBurstFlower(cx, cy)
   }, [spawnBurstFlower])
@@ -305,6 +314,65 @@ function App() {
     ctx.restore()
   }
 
+  // Draws a wreath arc of flowers between two points (used when both hands are visible)
+  const wreathSeedRef = useRef([]) // stable random offsets so flowers don't jitter every frame
+
+  const drawWreath = (ctx, p1, p2, canvasWidth, canvasHeight) => {
+    const x1 = p1.x * canvasWidth
+    const y1 = p1.y * canvasHeight
+    const x2 = p2.x * canvasWidth
+    const y2 = p2.y * canvasHeight
+
+    const midX = (x1 + x2) / 2
+    const midY = (y1 + y2) / 2
+    const dist = Math.hypot(x2 - x1, y2 - y1)
+    const arcHeight = dist * 0.35 // how much the arc curves upward
+
+    const FLOWER_COUNT = 10
+
+    // Generate stable per-flower species/hue once, so it doesn't randomize every frame
+    if (wreathSeedRef.current.length !== FLOWER_COUNT) {
+      wreathSeedRef.current = Array.from({ length: FLOWER_COUNT }, () => {
+        const species = randomSpecies()
+        const palette = randomPalette(species)
+        return {
+          species,
+          petalHue: palette.petal,
+          centerHue: palette.center,
+          petalLight: !!palette.petalLight,
+          size: 22 + Math.random() * 14,
+          rotationOffset: Math.random() * 360,
+        }
+      })
+    }
+
+    for (let i = 0; i < FLOWER_COUNT; i++) {
+      const t = i / (FLOWER_COUNT - 1) // 0 to 1 along the arc
+      const seed = wreathSeedRef.current[i]
+
+      // Quadratic bezier point along the arc, curving upward at the midpoint
+      const ctrlX = midX
+      const ctrlY = midY - arcHeight
+      const x = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * ctrlX + t * t * x2
+      const y = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * ctrlY + t * t * y2
+
+      const fakeFlower = {
+        petalHue: seed.petalHue,
+        centerHue: seed.centerHue,
+        petalLight: seed.petalLight,
+      }
+
+      ctx.save()
+      ctx.globalAlpha = 0.95
+      ctx.translate(x, y)
+      ctx.rotate(((seed.rotationOffset + performance.now() * 0.01) * Math.PI) / 180 * 0.02)
+      ctx.shadowColor = `hsla(${seed.petalHue}, 100%, 75%, 0.8)`
+      ctx.shadowBlur = 18
+      DRAW_FN[seed.species](ctx, fakeFlower, 0.95, seed.size)
+      ctx.restore()
+    }
+  }
+
   const detectLoop = () => {
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -326,6 +394,7 @@ function App() {
         const results = handLandmarkerRef.current.detectForVideo(video, performance.now())
 
         if (results.landmarks) {
+          // ---- Draw each detected hand: skeleton + trail/throw logic ----
           results.landmarks.forEach((hand, handIndex) => {
             const key = `hand-${handIndex}`
             const indexTip = hand[8]
@@ -374,11 +443,39 @@ function App() {
               lastPosRef.current[key] = { x, y, t: performance.now() }
             }
 
+            // Draw hand skeleton
+            ctx.strokeStyle = 'rgba(255,255,255,0.6)'
+            ctx.lineWidth = 2
+            HAND_CONNECTIONS.forEach(([startIdx, endIdx]) => {
+              const start = hand[startIdx]
+              const end = hand[endIdx]
+              ctx.beginPath()
+              ctx.moveTo(start.x * canvas.width, start.y * canvas.height)
+              ctx.lineTo(end.x * canvas.width, end.y * canvas.height)
+              ctx.stroke()
+            })
+            hand.forEach(point => {
+              ctx.beginPath()
+              ctx.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, 2 * Math.PI)
+              ctx.fillStyle = 'rgba(255,255,255,0.8)'
+              ctx.fill()
+            })
+
+            // Fingertip marker
             ctx.beginPath()
             ctx.arc(x, y, 6, 0, 2 * Math.PI)
             ctx.fillStyle = open ? 'rgba(255,182,193,0.9)' : 'rgba(255,255,255,0.6)'
             ctx.fill()
           })
+
+          // ---- Both-hands wreath effect ----
+          if (results.landmarks.length === 2) {
+            const tip1 = results.landmarks[0][8] // index fingertip, hand 1
+            const tip2 = results.landmarks[1][8] // index fingertip, hand 2
+            drawWreath(ctx, tip1, tip2, canvas.width, canvas.height)
+          } else {
+            wreathSeedRef.current = [] // reset so a fresh wreath re-randomizes next time both hands appear
+          }
         }
       }
 
@@ -398,7 +495,6 @@ function App() {
         f.rotation += f.rotationSpeed
 
         if (f.throwing) {
-          // stays fully visible for THROW_VISIBLE_MS, then fades out fast over THROW_FADE_MS
           const elapsed = nowTs - f.spawnTime
           if (elapsed < THROW_VISIBLE_MS) {
             f.life = 1
