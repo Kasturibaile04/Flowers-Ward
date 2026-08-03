@@ -30,7 +30,7 @@ An interactive hand-tracking web application where beautiful flowers bloom and f
 
 Live Website:
 
-https://flowers-ward.vercel.app/
+https://flowers-hands.vercel.app/
 
 ---
 
