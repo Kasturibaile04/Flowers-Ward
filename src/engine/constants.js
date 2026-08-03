@@ -42,22 +42,27 @@ export const THROW_MAX_SIZE = 42
 // Doubled entries = twice as likely to spawn.
 export const SPECIES = [
     "sunflower",
-    "daisy",            // reduced — 1 slot
+    "daisy", "daisy",      // 2 variants as requested
     "bluebell",
     "ranunculus",
     "tulip",
-    "phlox", "phlox",       // ×2
-    "sakura", "sakura",      // ×2
-    "frangipani", "frangipani",  // ×2
+    "phlox", "phlox",
+    "sakura", "sakura",
+    "frangipani", "frangipani",
     "crocus",
-    "tropica", "tropica",     // ×2
+    "tropica", "tropica",
     "clover",
     "buttercup",
-    "cosmos", "cosmos",      // ×2
-    "waterbloom", "waterbloom",  // ×2  (new)
-    "pressed", "pressed",     // ×2  (new)
-    "lilypad",                    //     (new)
-    "magnolia", "magnolia",    // ×2  (new)
+    "cosmos", "cosmos",
+    "waterbloom", "waterbloom",
+    "pressed", "pressed",
+    "lilypad",
+    "magnolia", "magnolia",
+    "watercolorblue", "watercolorblue", // (new)
+    "starflower", "starflower",         // (new)
+    "poppy", "poppy",                   // (new)
+    "swirlrose", "swirlrose",           // (new)
+    "crossflower", "crossflower",       // (new)
 ]
 
 // ===============================
@@ -77,7 +82,8 @@ export const PALETTES = {
     ],
 
     daisy: [
-        { petal: 0, center: 48, petalLight: true }   // one palette → fewer daisies
+        { petal: 0, center: 48, petalLight: true },
+        { petal: 340, center: 45, petalLight: true }
     ],
 
     bluebell: [
@@ -218,6 +224,40 @@ export const PALETTES = {
         { petal: 340, center: 18 },
         { petal: 5, center: 25 },
         { petal: 330, center: 20 }
+    ],
+
+    // Soft translucent blue 5-petal flower with yellow star centre
+    watercolorblue: [
+        { petal: 200, center: 55 },
+        { petal: 190, center: 50 },
+        { petal: 210, center: 60 }
+    ],
+
+    // Bright yellow star-shaped graphic flower
+    starflower: [
+        { petal: 55, center: 30 },
+        { petal: 50, center: 25 },
+        { petal: 60, center: 35 }
+    ],
+
+    // Red poppy with black/yellow dotted centre
+    poppy: [
+        { petal: 355, center: 0 },
+        { petal: 0, center: 10 },
+        { petal: 350, center: 5 }
+    ],
+
+    // Stylized swirl rose (concentric rough circles in purple/pink/orange)
+    swirlrose: [
+        { petal: 280, center: 290 }, // Purple
+        { petal: 330, center: 340 }, // Pink
+        { petal: 35, center: 20 }    // Orange
+    ],
+
+    // Simple 4-petal cross-shaped flower (deep magenta/purple)
+    crossflower: [
+        { petal: 310, center: 50 }, // Magenta
+        { petal: 290, center: 50 }, // Deep purple
+        { petal: 325, center: 45 }  // Pinkish purple
     ]
 }
-

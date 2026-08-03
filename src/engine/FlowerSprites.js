@@ -86,6 +86,26 @@ export function getFlowerSprite(species, palette) {
       drawMagnolia(ctx, palette);
       break;
 
+    case "watercolorblue":
+      drawWatercolorBlue(ctx, palette);
+      break;
+
+    case "starflower":
+      drawStarflower(ctx, palette);
+      break;
+
+    case "poppy":
+      drawPoppy(ctx, palette);
+      break;
+
+    case "swirlrose":
+      drawSwirlrose(ctx, palette);
+      break;
+
+    case "crossflower":
+      drawCrossflower(ctx, palette);
+      break;
+
     default:
       drawDaisy(ctx, palette);
       break;
@@ -967,6 +987,240 @@ function drawMagnolia(ctx, palette) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Watercolor Blue – 5 soft translucent cyanish petals, yellow star centre, blue lines
+// ─────────────────────────────────────────────────────────────────────────────
+function drawWatercolorBlue(ctx, palette) {
+  const petals = 5;
+
+  for (let i = 0; i < petals; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / petals);
+
+    // Soft transparent petal
+    ctx.globalAlpha = 0.55;
+    const g = ctx.createRadialGradient(0, -15, 2, 0, -15, 22);
+    g.addColorStop(0, `hsl(${palette.petal}, 70%, 75%)`);
+    g.addColorStop(1, `hsl(${palette.petal}, 60%, 85%)`);
+    ctx.fillStyle = g;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-15, -5, -20, -25, -10, -32);
+    ctx.bezierCurveTo(-3, -35, 3, -35, 10, -32);
+    ctx.bezierCurveTo(20, -25, 15, -5, 0, 0);
+    ctx.fill();
+    ctx.restore();
+
+    // Darker blue radiating lines
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / petals);
+    ctx.globalAlpha = 0.6;
+    ctx.strokeStyle = `hsl(${palette.petal}, 80%, 40%)`;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(0, -20);
+    ctx.moveTo(-2, -3);
+    ctx.lineTo(-6, -16);
+    ctx.moveTo(2, -3);
+    ctx.lineTo(6, -16);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Yellowish star centre
+  ctx.fillStyle = `hsl(${palette.center}, 80%, 70%)`;
+  ctx.beginPath();
+  const sO = 6;
+  const sI = 3;
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI * i) / 5 - Math.PI / 2;
+    const r = i % 2 === 0 ? sO : sI;
+    if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Starflower – 5 sharp graphic petals, bright yellow
+// ─────────────────────────────────────────────────────────────────────────────
+function drawStarflower(ctx, palette) {
+  const petals = 5;
+
+  for (let i = 0; i < petals; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / petals);
+
+    ctx.fillStyle = `hsl(${palette.petal}, 90%, 55%)`;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    // Diamond/Star shaped petal
+    ctx.lineTo(8, -15);
+    ctx.lineTo(0, -38);
+    ctx.lineTo(-8, -15);
+    ctx.closePath();
+    ctx.fill();
+
+    // Small highlight line
+    ctx.strokeStyle = `hsl(${palette.petal}, 90%, 75%)`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(0, -30);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Dark centre with dots
+  ctx.fillStyle = `hsl(${palette.center}, 60%, 25%)`;
+  ctx.beginPath();
+  ctx.arc(0, 0, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = `hsl(${palette.center}, 90%, 60%)`;
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI * 2 * i) / 8;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * 5, Math.sin(a) * 5, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Poppy – 4 wide red overlapping petals, dark dotted ring center
+// ─────────────────────────────────────────────────────────────────────────────
+function drawPoppy(ctx, palette) {
+  const petals = 4;
+
+  for (let i = 0; i < petals; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / petals + Math.PI / 4);
+
+    // Deep rich red
+    const g = ctx.createRadialGradient(0, -15, 0, 0, -15, 30);
+    g.addColorStop(0, `hsl(${palette.petal}, 95%, 45%)`);
+    g.addColorStop(1, `hsl(${palette.petal}, 85%, 35%)`);
+
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-25, -2, -35, -28, -15, -36);
+    ctx.bezierCurveTo(0, -40, 0, -40, 15, -36);
+    ctx.bezierCurveTo(35, -28, 25, -2, 0, 0);
+    ctx.fill();
+
+    // Subtle edge highlight
+    ctx.strokeStyle = `hsl(${palette.petal}, 90%, 55%)`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-15, -36);
+    ctx.bezierCurveTo(0, -40, 0, -40, 15, -36);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Large black/dark centre
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(0, 0, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Dotted stamen ring
+  for (let i = 0; i < 16; i++) {
+    const a = (Math.PI * 2 * i) / 16;
+    const r = 11 + Math.random();
+    ctx.fillStyle = i % 2 === 0 ? '#111' : '#facc15';
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Swirlrose – simplified graphic rose using concentric textured arcs
+// ─────────────────────────────────────────────────────────────────────────────
+function drawSwirlrose(ctx, palette) {
+  // Base solid circle
+  ctx.fillStyle = `hsl(${palette.petal}, 70%, 75%)`;
+  ctx.beginPath();
+  ctx.arc(0, 0, 32, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Swirl layers moving inward
+  const layers = [
+    { r: 26, c: 60, w: 6 },
+    { r: 18, c: 50, w: 5 },
+    { r: 10, c: 40, w: 4 },
+    { r: 3, c: 30, w: 3 }
+  ];
+
+  ctx.lineCap = 'round';
+
+  layers.forEach(layer => {
+    ctx.strokeStyle = `hsl(${palette.petal}, 65%, ${layer.c}%)`;
+    ctx.lineWidth = layer.w;
+    const segments = 3;
+    for (let i = 0; i < segments; i++) {
+      const startAngle = (Math.PI * 2 * i) / segments + Math.random();
+      const sweep = Math.PI * 1.5; // arc length
+      ctx.beginPath();
+      ctx.arc(0, 0, layer.r + Math.random() * 2, startAngle, startAngle + sweep);
+      ctx.stroke();
+    }
+  });
+
+  // Darkest centre dot
+  ctx.fillStyle = `hsl(${palette.center}, 80%, 20%)`;
+  ctx.beginPath();
+  ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Crossflower – 4 distinct wide petals with simple clean graphic look
+// ─────────────────────────────────────────────────────────────────────────────
+function drawCrossflower(ctx, palette) {
+  const petals = 4;
+
+  for (let i = 0; i < petals; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI * 2 * i) / petals);
+
+    ctx.fillStyle = `hsl(${palette.petal}, 75%, 55%)`;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-15, -15, -20, -32, 0, -38);
+    ctx.bezierCurveTo(20, -32, 15, -15, 0, 0);
+    ctx.fill();
+
+    // Center crease line
+    ctx.strokeStyle = `hsl(${palette.petal}, 75%, 40%)`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -2);
+    ctx.lineTo(0, -22);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Perfect yellow circle centre
+  ctx.fillStyle = '#facc15';
+  ctx.beginPath();
+  ctx.arc(0, 0, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ca8a04';
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 export function warmupSprites() {
   SPECIES.forEach((species) => {
     PALETTES[species].forEach((palette) => {
@@ -974,5 +1228,3 @@ export function warmupSprites() {
     });
   });
 }
-
-

@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+br.log
+br2.log
+br3.log
+
+grep_out.txt
